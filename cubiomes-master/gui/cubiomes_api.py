@@ -40,11 +40,18 @@ def _default_lib_name():
 
 def _find_library():
     here = os.path.dirname(os.path.abspath(__file__))
-    candidates = [
+    candidates = []
+
+    # PyInstaller などで単一ファイル化された場合、_MEIPASS に展開先が設定される
+    meipass = getattr(sys, "_MEIPASS", None)
+    if meipass:
+        candidates.append(os.path.join(meipass, _default_lib_name()))
+
+    candidates.extend([
         os.path.join(here, _default_lib_name()),
         os.path.join(here, "..", _default_lib_name()),
         os.path.join(os.getcwd(), _default_lib_name()),
-    ]
+    ])
     for c in candidates:
         if os.path.isfile(c):
             return c
@@ -85,10 +92,10 @@ _lib.gc_find_structures_near_origin.argtypes = [
 _lib.gc_find_structures_near_origin.restype = ctypes.c_int
 
 _lib.gc_find_seed_for_structure.argtypes = [
-    ctypes.c_int, ctypes.c_int, ctypes.c_int,
-    ctypes.POINTER(ctypes.c_int), ctypes.POINTER(ctypes.c_int),
-    ctypes.c_uint64, ctypes.c_uint64,
-    ctypes.c_int, ctypes.POINTER(ctypes.c_uint64),
+    ctypes.c_int, ctypes.c_int,
+    ctypes.POINTER(ctypes.c_int), ctypes.POINTER(ctypes.c_int), ctypes.c_int,
+    ctypes.c_uint64, ctypes.c_uint64, ctypes.c_int,
+    ctypes.POINTER(ctypes.c_uint64),
 ]
 _lib.gc_find_seed_for_structure.restype = ctypes.c_int
 
@@ -170,25 +177,21 @@ def find_structures(struct_type, mc, seed, region_radius, max_results=64):
     return [(xs[i], zs[i]) for i in range(n)]
 
 
-def find_seed_for_structure(struct_type, mc, positions,
-                            start_seed, end_seed, tolerance=0):
+def find_seed_for_structure(struct_type, mc, positions, start_seed, end_seed,
+                            tolerance=16):
     if not positions:
-        raise ValueError("positions must contain at least one (x, z) coordinate")
-    pos_count = len(positions)
-    xs = (ctypes.c_int * pos_count)()
-    zs = (ctypes.c_int * pos_count)()
-    for i, pos in enumerate(positions):
-        xs[i] = int(pos[0])
-        zs[i] = int(pos[1])
+        raise ValueError("positions must contain at least one coordinate")
+    n = len(positions)
+    xs = (ctypes.c_int * n)(*(int(p[0]) for p in positions))
+    zs = (ctypes.c_int * n)(*(int(p[1]) for p in positions))
     seed_out = ctypes.c_uint64(0)
-    ret = _lib.gc_find_seed_for_structure(
-        struct_type, mc, pos_count, xs, zs,
+    ok = _lib.gc_find_seed_for_structure(
+        struct_type, mc,
+        xs, zs, n,
         ctypes.c_uint64(start_seed), ctypes.c_uint64(end_seed),
-        tolerance, ctypes.byref(seed_out)
+        tolerance, ctypes.byref(seed_out),
     )
-    if ret != 0:
-        raise ValueError("seed not found in the given range and tolerance")
-    return seed_out.value
+    return bool(ok), seed_out.value
 
 
 def struct_name(struct_type):

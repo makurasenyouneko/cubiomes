@@ -127,16 +127,16 @@ int gc_find_structures_near_origin(int structType, int mc, uint64_t seed,
 }
 
 int gc_find_seed_for_structure(int structType, int mc,
-        int posCount, const int *posX, const int *posZ,
-        uint64_t startSeed, uint64_t endSeed,
-        int tolerance, uint64_t *seedOut)
+                                const int *posX, const int *posZ, int posCount,
+                                uint64_t startSeed, uint64_t endSeed,
+                                int tolerance, uint64_t *seedOut)
 {
-    if (posCount <= 0 || !posX || !posZ || !seedOut)
-        return -1;
+    if (posCount <= 0 || !posX || !posZ || !seedOut || endSeed < startSeed)
+        return 0;
 
-    Pos *positions = (Pos *) malloc(sizeof(Pos) * posCount);
+    Pos *positions = malloc(sizeof(Pos) * (size_t)posCount);
     if (!positions)
-        return -2;
+        return 0;
 
     for (int i = 0; i < posCount; i++)
     {
@@ -144,10 +144,10 @@ int gc_find_seed_for_structure(int structType, int mc,
         positions[i].z = posZ[i];
     }
 
-    int result = findSeedForStructure(structType, mc, positions, posCount,
-            startSeed, endSeed, tolerance, seedOut);
+    int found = findSeedForStructure(structType, mc, positions, posCount,
+                                     startSeed, endSeed, tolerance, seedOut);
     free(positions);
-    return result ? 0 : -3;
+    return found;
 }
 
 const char *gc_struct_name(int structType)
