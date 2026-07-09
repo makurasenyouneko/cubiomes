@@ -84,6 +84,14 @@ _lib.gc_find_structures_near_origin.argtypes = [
 ]
 _lib.gc_find_structures_near_origin.restype = ctypes.c_int
 
+_lib.gc_find_seed_for_structure.argtypes = [
+    ctypes.c_int, ctypes.c_int, ctypes.c_int,
+    ctypes.POINTER(ctypes.c_int), ctypes.POINTER(ctypes.c_int),
+    ctypes.c_uint64, ctypes.c_uint64,
+    ctypes.c_int, ctypes.POINTER(ctypes.c_uint64),
+]
+_lib.gc_find_seed_for_structure.restype = ctypes.c_int
+
 _lib.gc_struct_name.argtypes = [ctypes.c_int]
 _lib.gc_struct_name.restype = ctypes.c_char_p
 
@@ -160,6 +168,27 @@ def find_structures(struct_type, mc, seed, region_radius, max_results=64):
         struct_type, mc, ctypes.c_uint64(seed), region_radius, xs, zs, max_results
     )
     return [(xs[i], zs[i]) for i in range(n)]
+
+
+def find_seed_for_structure(struct_type, mc, positions,
+                            start_seed, end_seed, tolerance=0):
+    if not positions:
+        raise ValueError("positions must contain at least one (x, z) coordinate")
+    pos_count = len(positions)
+    xs = (ctypes.c_int * pos_count)()
+    zs = (ctypes.c_int * pos_count)()
+    for i, pos in enumerate(positions):
+        xs[i] = int(pos[0])
+        zs[i] = int(pos[1])
+    seed_out = ctypes.c_uint64(0)
+    ret = _lib.gc_find_seed_for_structure(
+        struct_type, mc, pos_count, xs, zs,
+        ctypes.c_uint64(start_seed), ctypes.c_uint64(end_seed),
+        tolerance, ctypes.byref(seed_out)
+    )
+    if ret != 0:
+        raise ValueError("seed not found in the given range and tolerance")
+    return seed_out.value
 
 
 def struct_name(struct_type):

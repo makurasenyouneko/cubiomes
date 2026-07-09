@@ -63,10 +63,12 @@ class CubiomesGUI(tk.Tk):
         self.biome_tab = self._build_biome_tab(notebook)
         self.map_tab = self._build_map_tab(notebook)
         self.struct_tab = self._build_struct_tab(notebook)
+        self.reverse_tab = self._build_reverse_tab(notebook)
 
         notebook.add(self.biome_tab, text="バイオーム判定")
         notebook.add(self.map_tab, text="マップ表示")
         notebook.add(self.struct_tab, text="ストラクチャー探索")
+        notebook.add(self.reverse_tab, text="シード逆算")
 
         self.status_var = tk.StringVar(value="準備完了")
         status = ttk.Label(self, textvariable=self.status_var, anchor="w",
@@ -313,6 +315,122 @@ class CubiomesGUI(tk.Tk):
             self._set_status(f"保存しました: {dest}")
         except Exception as e:
             messagebox.showerror("保存エラー", str(e))
+
+    def _build_reverse_tab(self, parent):
+        tab = ttk.Frame(parent)
+
+        form = ttk.Frame(tab)
+        form.pack(fill="x", padx=10, pady=10)
+
+        ttk.Label(form, text="ストラクチャー: ").grid(row=0, column=0, sticky="w")
+        self.reverse_struct_var = tk.StringVar(value=api.STRUCTURES[0][0])
+        ttk.Combobox(
+            form, textvariable=self.reverse_struct_var, state="readonly", width=26,
+            values=[s[0] for s in api.STRUCTURES]).grid(row=0, column=1, padx=4)
+
+        ttk.Label(form, text="観測座標リスト (X,Z,1行1件):").grid(
+            row=1, column=0, columnspan=2, sticky="w", pady=(8, 0))
+        self.reverse_pos_text = tk.Text(tab, height=8, width=60)
+        self.reverse_pos_text.pack(fill="x", padx=10, pady=(0, 8))
+        self.reverse_pos_text.insert("1.0", "0,0\n32,0\n0,32")
+
+        grid = ttk.Frame(tab)
+        grid.pack(fill="x", padx=10, pady=(0, 10))
+        ttk.Label(grid, text="探索開始シード: ").grid(row=0, column=0, sticky="w")
+        self.reverse_start_seed_var = tk.StringVar(value="0")
+        ttk.Entry(grid, textvariable=self.reverse_start_seed_var, width=18).grid(
+            row=0, column=1, padx=4)
+
+        ttk.Label(grid, text="探索終了シード: ").grid(row=0, column=2, sticky="w")
+        self.reverse_end_seed_var = tk.StringVar(value="10000")
+        ttk.Entry(grid, textvariable=self.reverse_end_seed_var, width=18).grid(
+            row=0, column=3, padx=4)
+
+        ttk.Label(grid, text="許容誤差(ブロック): ").grid(
+            row=0, column=4, sticky="w")
+        self.reverse_tolerance_var = tk.StringVar(value="0")
+        ttk.Entry(grid, textvariable=self.reverse_tolerance_var, width=6).grid(
+            row=0, column=5, padx=4)
+
+        ttk.Button(grid, text="シードを逆算", command=self._on_find_seed).grid(
+            row=0, column=6, padx=8)
+
+        self.reverse_result_var = tk.StringVar(value="")
+        result_label = ttk.Label(tab, textvariable=self.reverse_result_var,
+                                  font=("TkDefaultFont", 12, "bold"))
+        result_label.pack(padx=10, pady=10, anchor="w")
+
+        note = (
+            "指定した構造物位置の観測リストから、指定範囲のシードを探索します。\n"
+            "探索範囲が大きいと時間がかかります。まずは小さな範囲で試してください。"
+        )
+        ttk.Label(tab, text=note, foreground="#555").pack(
+            padx=10, anchor="w")
+
+        return tab
+
+    def _parse_reverse_positions(self):
+        text = self.reverse_pos_text.get("1.0", "end").strip()
+        if not text:
+            raise ValueError("少なくとも1つの座標を入力してください。")
+        positions = []
+        for line in text.splitlines():
+            line = line.strip()
+            if not line:
+                continue
+            if "," in line:
+                parts = [p.strip() for p in line.split(",")]
+            else:
+                parts = line.split()
+            if len(parts) != 2:
+                raise ValueError(f"座標の形式が不正です: {line}")
+            positions.append((int(parts[0]), int(parts[1])))
+        if not positions:
+            raise ValueError("少なくとも1つの座標を入力してください。")
+        return positions
+
+    def _on_find_seed(self):
+        struct_name = self.reverse_struct_var.get()
+        struct_type = None
+        for n, v in api.STRUCTURES:
+            if n == struct_name:
+                struct_type = v
+                break
+
+        try:
+            mc = self._current_mc()
+            positions = self._parse_reverse_positions()
+            start_seed = parse_seed(self.reverse_start_seed_var.get())
+            end_seed = parse_seed(self.reverse_end_seed_var.get())
+            tolerance = int(self.reverse_tolerance_var.get())
+            if start_seed > end_seed:
+                raise ValueError("探索開始シードは探索終了シード以下にしてください。")
+        except ValueError as e:
+            messagebox.showerror("入力エラー", f"入力値を確認してください。\n{e}")
+            return
+
+        self._set_status("シードを逆算しています...")
+        self.reverse_result_var.set("")
+
+        def worker():
+            try:
+                found_seed = api.find_seed_for_structure(
+                    struct_type, mc, positions,
+                    start_seed, end_seed, tolerance)
+            except Exception as e:
+                self.after(0, lambda: messagebox.showerror("エラー", str(e)))
+                self.after(0, lambda: self._set_status("逆算に失敗しました。"))
+                return
+
+            def apply_result():
+                self.reverse_result_var.set(
+                    f"一致するシード: {found_seed} (lower 48bit)"
+                )
+                self._set_status("逆算が完了しました。")
+
+            self.after(0, apply_result)
+
+        threading.Thread(target=worker, daemon=True).start()
 
     # ------------------------------------------------------------------
     # タブ3: ストラクチャー探索
