@@ -86,10 +86,17 @@ _lib.gc_generate_map_ppm.argtypes = [
 _lib.gc_generate_map_ppm.restype = ctypes.c_int
 
 _lib.gc_find_structures_near_origin.argtypes = [
-    ctypes.c_int, ctypes.c_int, ctypes.c_uint64, ctypes.c_int,
-    ctypes.POINTER(ctypes.c_int), ctypes.POINTER(ctypes.c_int), ctypes.c_int,
+    ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_uint32, ctypes.c_uint64,
+    ctypes.c_int, ctypes.POINTER(ctypes.c_int), ctypes.POINTER(ctypes.c_int), ctypes.c_int,
 ]
 _lib.gc_find_structures_near_origin.restype = ctypes.c_int
+
+_lib.gc_find_structures_in_area.argtypes = [
+    ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_uint32, ctypes.c_uint64,
+    ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_int,
+    ctypes.POINTER(ctypes.c_int), ctypes.POINTER(ctypes.c_int), ctypes.c_int,
+]
+_lib.gc_find_structures_in_area.restype = ctypes.c_int
 
 _lib.gc_find_seed_for_structure.argtypes = [
     ctypes.c_int, ctypes.c_int,
@@ -131,16 +138,30 @@ DIMENSIONS = [
 
 STRUCTURES = [
     ("村 (Village)", 5),
-    ("海底神殿 (Monument)", 8),
-    ("森の洋館 (Mansion)", 9),
-    ("前哨基地 (Outpost)", 10),
     ("砂漠の寺院 (Desert Pyramid)", 1),
     ("ジャングルの寺院 (Jungle Temple)", 2),
     ("魔女の小屋 (Swamp Hut)", 3),
     ("イグルー (Igloo)", 4),
+    ("海洋遺跡 (Ocean Ruins)", 6),
     ("難破船 (Shipwreck)", 7),
+    ("海底神殿 (Monument)", 8),
+    ("森の洋館 (Mansion)", 9),
+    ("前哨基地 (Outpost)", 10),
+    ("崩れたポータル (Ruined Portal)", 11),
+    ("崩れたポータル (ネザー) (Ruined Portal N)", 12),
+    ("遺跡都市 (Ancient City)", 13),
+    ("トレジャー (Treasure)", 14),
+    ("廃坑 (Mineshaft)", 15),
+    ("砂漠の井戸 (Desert Well)", 16),
+    ("ジオード (Geode)", 17),
     ("ネザー要塞 (Fortress)", 18),
-    ("エンドシティ (End City)", 20),
+    ("バスティオン (Bastion)", 19),
+    ("ジ・エンドシティ (End City)", 20),
+    ("エンドゲートウェイ (End Gateway)", 21),
+    ("エンド島 (End Island)", 22),
+    ("トレイルルイン (Trail Ruins)", 23),
+    ("試練の間 (Trial Chambers)", 24),
+    ("すべての構造物", -1),
 ]
 
 LARGE_BIOMES = 0x1
@@ -168,13 +189,51 @@ def generate_map(mc, seed, dim, cx, cz, width, height, pix_per_cell, out_path,
     return ret == 0
 
 
-def find_structures(struct_type, mc, seed, region_radius, max_results=64):
+def find_structures(struct_type, mc, seed, radius, dim=0, flags=0, max_results=64):
     xs = (ctypes.c_int * max_results)()
     zs = (ctypes.c_int * max_results)()
     n = _lib.gc_find_structures_near_origin(
-        struct_type, mc, ctypes.c_uint64(seed), region_radius, xs, zs, max_results
+        struct_type, mc, dim, flags, ctypes.c_uint64(seed), radius,
+        xs, zs, max_results
     )
     return [(xs[i], zs[i]) for i in range(n)]
+
+def find_all_structures(mc, seed, radius, dim=0, flags=0, max_results=256):
+    results = []
+    for _, struct_type in STRUCTURES:
+        if struct_type < 0:
+            continue
+        entries = find_structures(struct_type, mc, seed, radius,
+                                  dim=dim, flags=flags, max_results=max_results)
+        for x, z in entries:
+            results.append((struct_type, x, z))
+    return results
+
+
+def find_structures_in_area(struct_type, mc, seed, min_x, min_z, max_x, max_z,
+                            dim=0, flags=0, max_results=256):
+    xs = (ctypes.c_int * max_results)()
+    zs = (ctypes.c_int * max_results)()
+    n = _lib.gc_find_structures_in_area(
+        struct_type, mc, dim, flags, ctypes.c_uint64(seed),
+        min_x, min_z, max_x, max_z,
+        xs, zs, max_results
+    )
+    return [(xs[i], zs[i]) for i in range(n)]
+
+def find_all_structures_in_area(mc, seed, min_x, min_z, max_x, max_z,
+                                dim=0, flags=0, max_results=256):
+    results = []
+    for _, struct_type in STRUCTURES:
+        if struct_type < 0:
+            continue
+        entries = find_structures_in_area(
+            struct_type, mc, seed,
+            min_x, min_z, max_x, max_z,
+            dim=dim, flags=flags, max_results=max_results)
+        for x, z in entries:
+            results.append((struct_type, x, z))
+    return results
 
 
 def find_seed_for_structure(struct_type, mc, positions, start_seed, end_seed,

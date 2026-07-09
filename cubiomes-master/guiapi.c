@@ -106,10 +106,15 @@ int gc_generate_map_ppm(int mc, uint32_t flags, int dim, uint64_t seed,
  * 地形都合による生成失敗(1.18+の砂漠ピラミッド等)までは判定しない近似値。
  * 戻り値: 見つかった件数
  */
-int gc_find_structures_near_origin(int structType, int mc, uint64_t seed,
+int gc_find_structures_near_origin(int structType, int mc, int dim,
+                                    uint32_t flags, uint64_t seed,
                                     int regionRadius,
                                     int *outX, int *outZ, int maxResults)
 {
+    Generator g;
+    setupGenerator(&g, mc, flags);
+    applySeed(&g, dim, seed);
+
     int found = 0;
     for (int rz = -regionRadius; rz <= regionRadius && found < maxResults; rz++)
     {
@@ -117,6 +122,50 @@ int gc_find_structures_near_origin(int structType, int mc, uint64_t seed,
         {
             Pos p;
             if (!getStructurePos(structType, mc, seed, rx, rz, &p))
+                continue;
+            if (!isViableStructurePos(structType, &g, p.x, p.z, 0))
+                continue;
+            outX[found] = p.x;
+            outZ[found] = p.z;
+            found++;
+        }
+    }
+    return found;
+}
+
+int gc_find_structures_in_area(int structType, int mc, int dim,
+                               uint32_t flags, uint64_t seed,
+                               int minX, int minZ, int maxX, int maxZ,
+                               int *outX, int *outZ, int maxResults)
+{
+    if (minX > maxX || minZ > maxZ || maxResults <= 0)
+        return 0;
+
+    StructureConfig sconf;
+    if (!getStructureConfig(structType, mc, &sconf))
+        return 0;
+
+    int regionBlocks = sconf.regionSize * 16;
+    int regX0 = floordiv(minX, regionBlocks) - 1;
+    int regX1 = floordiv(maxX, regionBlocks) + 1;
+    int regZ0 = floordiv(minZ, regionBlocks) - 1;
+    int regZ1 = floordiv(maxZ, regionBlocks) + 1;
+
+    Generator g;
+    setupGenerator(&g, mc, flags);
+    applySeed(&g, dim, seed);
+
+    int found = 0;
+    for (int rz = regZ0; rz <= regZ1 && found < maxResults; rz++)
+    {
+        for (int rx = regX0; rx <= regX1 && found < maxResults; rx++)
+        {
+            Pos p;
+            if (!getStructurePos(structType, mc, seed, rx, rz, &p))
+                continue;
+            if (p.x < minX || p.x > maxX || p.z < minZ || p.z > maxZ)
+                continue;
+            if (!isViableStructurePos(structType, &g, p.x, p.z, 0))
                 continue;
             outX[found] = p.x;
             outZ[found] = p.z;

@@ -127,6 +127,13 @@ class CubiomesGUI(tk.Tk):
     def _current_seed(self):
         return parse_seed(self.seed_var.get())
 
+    def _current_dim(self, dim_name=None):
+        name = dim_name if dim_name is not None else self.dim_var.get()
+        for n, v in api.DIMENSIONS:
+            if n == name:
+                return v
+        return api.DIMENSIONS[0][1]
+
     def _set_status(self, text):
         self.status_var.set(text)
         self.update_idletasks()
@@ -293,6 +300,33 @@ class CubiomesGUI(tk.Tk):
                 self.map_canvas.config(
                     scrollregion=(0, 0, photo.width(), photo.height()))
                 self.map_canvas.create_image(0, 0, anchor="nw", image=photo)
+                # overlay structures found in this map area
+                try:
+                    min_x = cx - (size // 2)
+                    min_z = cz - (size // 2)
+                    max_x = cx + (size // 2)
+                    max_z = cz + (size // 2)
+                    structs = api.find_all_structures_in_area(
+                        mc, seed, min_x, min_z, max_x, max_z,
+                        dim=dim, max_results=1024)
+                except Exception:
+                    structs = []
+
+                # color map for some structure types
+                color_map = {
+                    5: "#2e8b57",   # Village - sea green
+                    1: "#ff8c00",   # Desert Pyramid - dark orange
+                    13: "#b22222",  # Ancient City - firebrick
+                    24: "#800080",  # Trial Chambers - purple
+                    8: "#1e90ff",   # Monument - dodger blue
+                }
+                for stype, sx, sz in structs:
+                    px = int((sx - min_x) * pix)
+                    pz = int((sz - min_z) * pix)
+                    r = max(2, pix // 2)
+                    col = color_map.get(stype, "#ffff00")
+                    self.map_canvas.create_oval(px - r, pz - r, px + r, pz + r,
+                                                fill=col, outline="")
                 self._set_status(
                     f"マップ生成が完了しました。({photo.width()}x{photo.height()}px)")
 
@@ -333,24 +367,36 @@ class CubiomesGUI(tk.Tk):
             values=[s[0] for s in api.STRUCTURES]).grid(
             row=0, column=1, padx=4)
 
+        ttk.Label(form, text="ディメンション:").grid(row=0, column=2, sticky="w")
+        self.seed_dim_var = tk.StringVar(value=api.DIMENSIONS[0][0])
+        ttk.Combobox(
+            form, textvariable=self.seed_dim_var, state="readonly", width=16,
+            values=[d[0] for d in api.DIMENSIONS]).grid(
+            row=0, column=3, padx=4)
+
+        ttk.Label(form, text="構造物のフラグ:").grid(row=1, column=2, sticky="w")
+        self.seed_flags_var = tk.StringVar(value="")
+        ttk.Entry(form, textvariable=self.seed_flags_var, width=16).grid(
+            row=1, column=3, padx=4)
+
         ttk.Label(form, text="座標リスト (X,Z):").grid(
-            row=1, column=0, sticky="nw", pady=(6, 0))
+            row=2, column=0, sticky="nw", pady=(6, 0))
         self.seed_positions_var = tk.StringVar(value="0,0\n16,0\n0,16")
         self.seed_positions_text = tk.Text(form, width=48, height=5)
         self.seed_positions_text.grid(row=1, column=1, columnspan=4, padx=4, pady=(6, 0))
 
-        ttk.Label(form, text="開始シード: ").grid(row=2, column=0, sticky="w", pady=4)
+        ttk.Label(form, text="開始シード: ").grid(row=3, column=0, sticky="w", pady=4)
         self.seed_start_var = tk.StringVar(value="0")
         ttk.Entry(form, textvariable=self.seed_start_var, width=18).grid(
-            row=2, column=1, padx=4)
+            row=3, column=1, padx=4)
 
-        ttk.Label(form, text="終了シード: ").grid(row=2, column=2, sticky="w", pady=4)
+        ttk.Label(form, text="終了シード: ").grid(row=3, column=2, sticky="w", pady=4)
         self.seed_end_var = tk.StringVar(value="65535")
         ttk.Entry(form, textvariable=self.seed_end_var, width=18).grid(
-            row=2, column=3, padx=4)
+            row=3, column=3, padx=4)
 
         ttk.Label(form, text="許容誤差(ブロック):").grid(
-            row=3, column=0, sticky="w", pady=4)
+            row=4, column=0, sticky="w", pady=4)
         self.seed_tolerance_var = tk.StringVar(value="8")
         ttk.Entry(form, textvariable=self.seed_tolerance_var, width=8).grid(
             row=3, column=1, padx=4)
@@ -375,6 +421,10 @@ class CubiomesGUI(tk.Tk):
         self.seed_tree.column("seed", width=260, anchor="center")
         self.seed_tree.pack(fill="both", expand=True, padx=10, pady=10)
 
+        self.seed_status_var = tk.StringVar(value="")
+        ttk.Label(tab, textvariable=self.seed_status_var, foreground="#555").pack(
+            fill="x", padx=10, pady=(0, 8))
+
         return tab
 
     def _build_struct_tab(self, parent):
@@ -396,6 +446,13 @@ class CubiomesGUI(tk.Tk):
         ttk.Entry(form, textvariable=self.struct_radius_var, width=6).grid(
             row=0, column=3, padx=4)
 
+        ttk.Label(form, text="ディメンション:").grid(row=1, column=0, sticky="w")
+        self.struct_dim_var = tk.StringVar(value=api.DIMENSIONS[0][0])
+        ttk.Combobox(
+            form, textvariable=self.struct_dim_var, state="readonly", width=16,
+            values=[d[0] for d in api.DIMENSIONS]).grid(
+            row=1, column=1, padx=4)
+
         ttk.Button(form, text="原点付近を探索",
                    command=self._on_find_structures).grid(
             row=0, column=4, padx=10)
@@ -408,18 +465,24 @@ class CubiomesGUI(tk.Tk):
         ttk.Label(tab, text=note, foreground="#555").pack(
             padx=10, anchor="w")
 
-        columns = ("no", "x", "z", "dist")
+        columns = ("no", "type", "x", "z", "dist")
         self.struct_tree = ttk.Treeview(
             tab, columns=columns, show="headings", height=16)
         self.struct_tree.heading("no", text="#")
+        self.struct_tree.heading("type", text="種類")
         self.struct_tree.heading("x", text="X座標")
         self.struct_tree.heading("z", text="Z座標")
         self.struct_tree.heading("dist", text="原点からの距離(ブロック)")
         self.struct_tree.column("no", width=50, anchor="center")
-        self.struct_tree.column("x", width=140, anchor="center")
-        self.struct_tree.column("z", width=140, anchor="center")
-        self.struct_tree.column("dist", width=200, anchor="center")
+        self.struct_tree.column("type", width=180, anchor="w")
+        self.struct_tree.column("x", width=100, anchor="center")
+        self.struct_tree.column("z", width=100, anchor="center")
+        self.struct_tree.column("dist", width=180, anchor="center")
         self.struct_tree.pack(fill="both", expand=True, padx=10, pady=10)
+
+        self.struct_status_var = tk.StringVar(value="")
+        ttk.Label(tab, textvariable=self.struct_status_var, foreground="#555").pack(
+            fill="x", padx=10, pady=(0, 8))
 
         return tab
 
@@ -450,10 +513,12 @@ class CubiomesGUI(tk.Tk):
 
         try:
             mc = self._current_mc()
+            dim = self._current_dim(self.seed_dim_var.get())
             positions = self._parse_positions(self.seed_positions_text.get("1.0", "end"))
             start_seed = parse_seed(self.seed_start_var.get())
             end_seed = parse_seed(self.seed_end_var.get())
             tolerance = int(self.seed_tolerance_var.get())
+            flags = int(self.seed_flags_var.get()) if self.seed_flags_var.get().strip() else 0
         except ValueError as e:
             messagebox.showerror("入力エラー", f"入力値を確認してください。\n{e}")
             return
@@ -466,6 +531,7 @@ class CubiomesGUI(tk.Tk):
             return
 
         self._set_status("シードを探索しています...")
+        self.seed_status_var.set("探索中...")
         for item in self.seed_tree.get_children():
             self.seed_tree.delete(item)
 
@@ -484,9 +550,11 @@ class CubiomesGUI(tk.Tk):
                 if not found:
                     messagebox.showinfo("結果", "指定範囲内でシードが見つかりませんでした。")
                     self._set_status("シードが見つかりませんでした。")
+                    self.seed_status_var.set("見つかりませんでした。")
                     return
                 self.seed_tree.insert("", "end", values=(1, seed))
                 self._set_status(f"シードが見つかりました: {seed}")
+                self.seed_status_var.set(f"見つかったシード: {seed}")
 
             self.after(0, apply_result)
 
@@ -502,6 +570,7 @@ class CubiomesGUI(tk.Tk):
 
         try:
             mc = self._current_mc()
+            dim = self._current_dim(self.struct_dim_var.get())
             seed = self._current_seed()
             radius = int(self.struct_radius_var.get())
         except ValueError as e:
@@ -513,26 +582,40 @@ class CubiomesGUI(tk.Tk):
             return
 
         self._set_status("ストラクチャーを探索しています...")
+        self.struct_status_var.set("探索中...")
         for item in self.struct_tree.get_children():
             self.struct_tree.delete(item)
 
         def worker():
             try:
-                results = api.find_structures(
-                    struct_type, mc, seed, radius, max_results=400)
+                if struct_type == -1:
+                    results = api.find_all_structures(mc, seed, radius, dim=dim, max_results=400)
+                else:
+                    entries = api.find_structures(struct_type, mc, seed, radius, dim=dim, max_results=400)
+                    # normalize to (type,x,z) tuples for consistent display
+                    results = [(struct_type, x, z) for (x, z) in entries]
             except Exception as e:
                 self.after(0, lambda: messagebox.showerror("エラー", str(e)))
                 self.after(0, lambda: self._set_status("探索に失敗しました。"))
                 return
 
-            results.sort(key=lambda p: p[0] ** 2 + p[1] ** 2)
+            # sort by distance from origin (x^2+z^2)
+            results.sort(key=lambda p: p[1] ** 2 + p[2] ** 2)
 
             def apply_result():
-                for i, (x, z) in enumerate(results, start=1):
+                if not results:
+                    self.struct_status_var.set("結果がありませんでした。")
+                for i, item in enumerate(results, start=1):
+                    stype, x, z = item
                     dist = int((x ** 2 + z ** 2) ** 0.5)
+                    try:
+                        stname = api.struct_name(stype)
+                    except Exception:
+                        stname = str(stype)
                     self.struct_tree.insert(
-                        "", "end", values=(i, x, z, dist))
+                        "", "end", values=(i, stname, x, z, dist))
                 self._set_status(f"{len(results)} 件見つかりました。")
+                self.struct_status_var.set(f"{len(results)} 件見つかりました。")
 
             self.after(0, apply_result)
 
