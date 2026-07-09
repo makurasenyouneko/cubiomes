@@ -8,6 +8,8 @@ It is intended as a powerful tool to devise very fast, custom seed-finding appli
 
 If you want to get started without coding, there is now also a [graphical application](https://github.com/Cubitect/cubiomes-viewer) based on this library.
 
+This fork also includes a small Python/Tkinter GUI (Japanese UI) under [`gui/`](gui/README_GUI_ja.md) as a lightweight, dependency-free alternative — see `gui/README_GUI_ja.md` for setup instructions (日本語の説明は `gui/README_GUI_ja.md` を参照してください).
+
 
 #### Audience
 
@@ -135,6 +137,20 @@ int main()
 
 
 ### Structure Generation
+
+When the world seed is unknown but one or more structure positions are known, you can recover candidate seeds with the new helper API:
+
+```c
+Pos observed[2] = {{1000, 2000}, {1100, 2100}};
+uint64_t foundSeed = 0;
+if (findSeedForStructure(Village, MC_1_21, observed, 2,
+        0, 100000, 8, &foundSeed)) {
+    printf("candidate seed: %" PRIu64 "\n", foundSeed);
+}
+```
+
+This checks candidate seeds in the requested range and returns the first one whose generated structure positions match the supplied observations within the provided tolerance.
+
 
 The generation of structures can usually be regarded as a two-stage process: generation attempts and biome checks. For most structures, Minecraft divides the world into a grid of regions (usually 32x32 chunks) and performs one generation attempt in each. We can use `getStructurePos()` to get the position of such a generation attempt, and then test whether a structure will actually generate there with `isViableStructurePos()`; however, this is more expensive to compute (requiring many microseconds instead of nanoseconds).
 

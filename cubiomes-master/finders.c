@@ -329,6 +329,71 @@ int getStructurePos(int structureType, int mc, uint64_t seed, int regX, int regZ
 }
 
 
+int findSeedForStructure(int structureType, int mc, const Pos *positions,
+        int posCount, uint64_t startSeed, uint64_t endSeed,
+        int tolerance, uint64_t *seedOut)
+{
+    int i;
+    StructureConfig sconf;
+#if STRUCT_CONFIG_OVERRIDE
+    if (!getStructureConfig_override(structureType, mc, &sconf))
+#else
+    if (!getStructureConfig(structureType, mc, &sconf))
+#endif
+    {
+        return 0;
+    }
+
+    if (posCount <= 0 || !positions || !seedOut)
+        return 0;
+
+    for (uint64_t seed = startSeed; seed <= endSeed; seed++)
+    {
+        int matched = 1;
+        for (i = 0; i < posCount; i++)
+        {
+            Pos actual;
+            int found = 0;
+            int regX = positions[i].x / (sconf.regionSize * 16);
+            int regZ = positions[i].z / (sconf.regionSize * 16);
+            int regX0 = regX - 1;
+            int regX1 = regX + 1;
+            int regZ0 = regZ - 1;
+            int regZ1 = regZ + 1;
+            int rx, rz;
+
+            for (rz = regZ0; rz <= regZ1; rz++)
+            {
+                for (rx = regX0; rx <= regX1; rx++)
+                {
+                    if (!getStructurePos(structureType, mc, seed, rx, rz, &actual))
+                        continue;
+                    if (abs(actual.x - positions[i].x) <= tolerance &&
+                        abs(actual.z - positions[i].z) <= tolerance)
+                    {
+                        found = 1;
+                        break;
+                    }
+                }
+                if (found)
+                    break;
+            }
+            if (!found)
+            {
+                matched = 0;
+                break;
+            }
+        }
+        if (matched)
+        {
+            *seedOut = seed;
+            return 1;
+        }
+    }
+
+    return 0;
+}
+
 int getMineshafts(int mc, uint64_t seed, int cx0, int cz0, int cx1, int cz1,
         Pos *out, int nout)
 {

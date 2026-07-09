@@ -1,0 +1,1 @@
+/usr/bin/cc  -Wall -Wextra -O3 -DNDEBUG -rdynamic CMakeFiles/cubiomes_tests.dir/tests.c.o -o cubiomes_tests  libcubiomes_static.a -lm 

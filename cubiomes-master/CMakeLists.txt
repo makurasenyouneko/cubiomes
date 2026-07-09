@@ -39,6 +39,13 @@ set_property(TARGET objects PROPERTY POSITION_INDEPENDENT_CODE 1)
 add_library(cubiomes SHARED $<TARGET_OBJECTS:objects>)
 add_library(cubiomes_static STATIC $<TARGET_OBJECTS:objects>)
 
+target_link_libraries(cubiomes PRIVATE m)
+
+target_link_libraries(cubiomes_static PUBLIC m)
+
+add_executable(cubiomes_tests tests.c)
+target_link_libraries(cubiomes_tests PRIVATE cubiomes_static m)
+
 install(TARGETS cubiomes cubiomes_static DESTINATION lib)
 install(FILES ${HEADERS} DESTINATION include)
 

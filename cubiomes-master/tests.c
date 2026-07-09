@@ -489,7 +489,35 @@ int getStructureConfig_override(int stype, int mc, StructureConfig *sconf)
     return getStructureConfig(stype, mc, sconf);
 }
 
+static void testFindSeedFromStructure(void)
+{
+    const int structureType = Village;
+    const int mc = MC_1_21;
+    const uint64_t seed = 1234;
+    Pos observed[3] = {{0}};
 
+    if (!getStructurePos(structureType, mc, seed, 0, 0, &observed[0]) ||
+        !getStructurePos(structureType, mc, seed, 1, 0, &observed[1]) ||
+        !getStructurePos(structureType, mc, seed, 0, 1, &observed[2])) {
+        fprintf(stderr, "failed to generate reference structure positions\n");
+        exit(1);
+    }
+
+    uint64_t foundSeed = 0;
+    if (!findSeedForStructure(structureType, mc, observed, 3,
+            0, 10000, 0, &foundSeed)) {
+        fprintf(stderr, "failed to recover seed from structure positions\n");
+        exit(1);
+    }
+
+    if (foundSeed != seed) {
+        fprintf(stderr, "recovered seed %" PRIu64 " != expected %" PRIu64 "\n",
+                foundSeed, seed);
+        exit(1);
+    }
+
+    printf("seed recovery test passed\n");
+}
 
 int main()
 {
@@ -523,6 +551,8 @@ int main()
     */
 
     //findStructures(Trial_Chambers, MC_1_21, 0, 1, 3056, 3440, 3056, 3440);
+
+    testFindSeedFromStructure();
 
     //endHeight(MC_1_21, 1, 80>>1, 1216>>1, 32, 32, 2);
 

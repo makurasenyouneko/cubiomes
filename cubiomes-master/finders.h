@@ -216,6 +216,25 @@ int getStructureConfig_override(int stype, int mc, StructureConfig *sconf);
  */
 int getStructurePos(int structureType, int mc, uint64_t seed, int regX, int regZ, Pos *pos);
 
+/* Searches a seed range for a seed whose generated structure positions match the
+ * supplied observations. This is useful when the world seed is unknown and only
+ * the structure coordinates (or a small set of them) are known.
+ *
+ * @structureType   : structure type
+ * @mc              : minecraft version
+ * @positions       : observed structure positions in block coordinates
+ * @posCount        : number of observed positions
+ * @startSeed       : first seed to test (inclusive)
+ * @endSeed         : last seed to test (inclusive)
+ * @tolerance       : maximum block distance allowed per coordinate match
+ * @seedOut         : output seed if one is found
+ *
+ * Returns non-zero when a matching seed is found, otherwise zero.
+ */
+int findSeedForStructure(int structureType, int mc, const Pos *positions,
+        int posCount, uint64_t startSeed, uint64_t endSeed,
+        int tolerance, uint64_t *seedOut);
+
 /* The inline functions below get the generation attempt position given a
  * structure configuration. Most small structures use the getFeature..
  * variants, which have a uniform distribution, while large structures
