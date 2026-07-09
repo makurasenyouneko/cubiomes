@@ -1,0 +1,3 @@
+/usr/bin/cmake -E rm -f CMakeFiles/cubiomes_tests.dir/objects.a
+/usr/bin/x86_64-w64-mingw32-ar qc CMakeFiles/cubiomes_tests.dir/objects.a @CMakeFiles/cubiomes_tests.dir/objects1.rsp
+/usr/bin/x86_64-w64-mingw32-gcc  -Wall -Wextra -O3 -DNDEBUG -Wl,--whole-archive CMakeFiles/cubiomes_tests.dir/objects.a -Wl,--no-whole-archive -o cubiomes_tests.exe -Wl,--out-implib,libcubiomes_tests.dll.a -Wl,--major-image-version,0,--minor-image-version,0 @CMakeFiles/cubiomes_tests.dir/linkLibs.rsp

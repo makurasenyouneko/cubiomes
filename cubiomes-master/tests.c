@@ -1,7 +1,6 @@
 #include "finders.h"
 #include "util.h"
 
-#include <sys/time.h>
 #include <time.h>
 #include <float.h>
 #include <stdlib.h>
@@ -9,6 +8,26 @@
 #include <math.h>
 #include <string.h>
 #include <limits.h>
+#include <inttypes.h>
+
+#if defined(_WIN32)
+#include <windows.h>
+static double now(void)
+{
+    LARGE_INTEGER freq, counter;
+    QueryPerformanceFrequency(&freq);
+    QueryPerformanceCounter(&counter);
+    return (double)counter.QuadPart / (double)freq.QuadPart;
+}
+#else
+#include <sys/time.h>
+static double now(void)
+{
+    struct timespec t;
+    clock_gettime(CLOCK_MONOTONIC, &t);
+    return t.tv_sec + t.tv_nsec * 1e-9;
+}
+#endif
 
 static uint32_t hash32(uint32_t x)
 {
@@ -18,13 +37,6 @@ static uint32_t hash32(uint32_t x)
     x *= 0xaf723597;
     x ^= x >> 15;
     return x;
-}
-
-static double now()
-{
-    struct timespec t;
-    clock_gettime(CLOCK_MONOTONIC, &t);
-    return t.tv_sec + t.tv_nsec * 1e-9;
 }
 
 /* Runs a performance test using function f(). The function should take a

@@ -1,0 +1,10 @@
+/workspaces/cubiomes/cubiomes-master/build-win/CMakeFiles/objects.dir
+/workspaces/cubiomes/cubiomes-master/build-win/CMakeFiles/cubiomes.dir
+/workspaces/cubiomes/cubiomes-master/build-win/CMakeFiles/cubiomes_static.dir
+/workspaces/cubiomes/cubiomes-master/build-win/CMakeFiles/cubiomes_tests.dir
+/workspaces/cubiomes/cubiomes-master/build-win/CMakeFiles/edit_cache.dir
+/workspaces/cubiomes/cubiomes-master/build-win/CMakeFiles/rebuild_cache.dir
+/workspaces/cubiomes/cubiomes-master/build-win/CMakeFiles/list_install_components.dir
+/workspaces/cubiomes/cubiomes-master/build-win/CMakeFiles/install.dir
+/workspaces/cubiomes/cubiomes-master/build-win/CMakeFiles/install/local.dir
+/workspaces/cubiomes/cubiomes-master/build-win/CMakeFiles/install/strip.dir

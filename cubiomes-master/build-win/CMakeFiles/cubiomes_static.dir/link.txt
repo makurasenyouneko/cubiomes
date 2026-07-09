@@ -1,0 +1,2 @@
+/usr/bin/x86_64-w64-mingw32-ar qc libcubiomes_static.a CMakeFiles/objects.dir/finders.c.obj CMakeFiles/objects.dir/generator.c.obj CMakeFiles/objects.dir/layers.c.obj CMakeFiles/objects.dir/biomenoise.c.obj CMakeFiles/objects.dir/biomes.c.obj CMakeFiles/objects.dir/noise.c.obj CMakeFiles/objects.dir/util.c.obj CMakeFiles/objects.dir/quadbase.c.obj
+/usr/bin/x86_64-w64-mingw32-ranlib libcubiomes_static.a

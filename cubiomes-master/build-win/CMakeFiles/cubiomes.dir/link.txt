@@ -1,0 +1,3 @@
+/usr/bin/cmake -E rm -f CMakeFiles/cubiomes.dir/objects.a
+/usr/bin/x86_64-w64-mingw32-ar qc CMakeFiles/cubiomes.dir/objects.a @CMakeFiles/cubiomes.dir/objects1.rsp
+/usr/bin/x86_64-w64-mingw32-gcc  -Wall -Wextra -O3 -DNDEBUG -shared -o libcubiomes.dll -Wl,--out-implib,libcubiomes.dll.a -Wl,--major-image-version,0,--minor-image-version,0 -Wl,--whole-archive CMakeFiles/cubiomes.dir/objects.a -Wl,--no-whole-archive @CMakeFiles/cubiomes.dir/linkLibs.rsp
